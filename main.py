@@ -2,7 +2,7 @@ import os
 import random
 
 
-MAX_ROOM_SIZE = (10, 10)
+MAX_ROOM_SIZE = (15, 15)
 MIN_ROOM_SIZE = (3, 3)
 
 
@@ -54,8 +54,8 @@ class Area:
     
     def createRoom(self):
         room_size = (
-            random.randint(MIN_ROOM_SIZE[0], self.size[0] - 2),
-            random.randint(MIN_ROOM_SIZE[1], self.size[1] - 2)
+            random.randint(MIN_ROOM_SIZE[0], min(self.size[0] - 2, MAX_ROOM_SIZE[0])),
+            random.randint(MIN_ROOM_SIZE[1], min(self.size[1] - 2, MAX_ROOM_SIZE[1]))
         )
         room_position = (
             self.position[0] + random.randint(1, self.size[0] - room_size[0] - 1),
@@ -175,7 +175,7 @@ class Map:
 
         # エリア分割&部屋生成
         now_areas = [self.root_area]
-        for _i in range(4):
+        for _i in range(random.randint(2, 4)):
             tmp_areas = []
             for area in now_areas:
                 area.divide()
@@ -204,5 +204,5 @@ class Map:
             print()
 
 
-map = Map((100, 100))
+map = Map((50, 50))
 map.printMap()
