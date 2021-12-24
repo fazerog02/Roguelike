@@ -30,12 +30,28 @@ class Trap(Entity):
 
 
 class Item(Trap):
-    def __init__(self, effect, img, tag="item"):
+    def __init__(self, name, effect, img, tag="item"):
         super().__init__(self.get_item, img, tag)
+        self.name = name
         self.effect = effect
 
     def get_item(self, player):
         player.add_item(self)
+
+
+class Food(Item):
+    def __init__(self, name, hunger, img, extra_effect=None):
+        super().__init__(name, self.add_hunger, img)
+        self.hunger = hunger
+        self.extra_effect = extra_effect
+
+    def add_hunger(self, game):
+        game.player.hunger = min(
+            game.player.hunger + self.hunger,
+            game.player.max_hunger
+        )
+        if self.extra_effect is not None:
+            self.extra_effect(game)
 
 
 class Player(Entity):
@@ -46,9 +62,11 @@ class Player(Entity):
         self.lv = 0
         self.exp = 0
         self.hp = 10
+        self.max_hp = 10
         self.attack = 1
         self.defend = 1
         self.hunger = 100
+        self.max_hunger = 100
         self.skills = []
         self.items = {}
 
@@ -63,10 +81,10 @@ class Player(Entity):
             self.on_lv_up()
 
     def add_item(self, item):
-        if item in self.items.keys():
-            self.items[item] += 1
+        if item.name in self.items.keys():
+            self.items[item.name][1] += 1
         else:
-            self.items[item] = 1
+            self.items[item.name] = [item, 1]
 
     def __str__(self):
         return "@"

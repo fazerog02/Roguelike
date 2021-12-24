@@ -4,7 +4,7 @@ import sys
 import readchar
 
 from libs.map import Map
-from libs.entity import Player
+from libs.entity import Floor, Player
 
 
 MAP_SIZE = (25, 25)
@@ -23,6 +23,12 @@ class Game:
         self.map_level += 1
         current_map = self.maps[self.map_level-1]
 
+        if self.map_level > 1:
+            print("\r\033[1A", end="")
+            print("\r\033[1A", end="")
+        print(f"{self.map_level}F")
+        print(self.player.items)
+
         # プレイヤー座標ぎめ
         all_rooms = current_map.root_area.getAllRooms()
         room = random.choice(all_rooms)
@@ -32,6 +38,14 @@ class Game:
         )
 
         # 視界確保
+        self.get_vision()
+
+        # マップ表示
+        current_map.printMap(self.player.position)
+
+    def get_vision(self):
+        current_map = self.maps[self.map_level-1]
+
         visible_begin = (
                 max(self.player.position[0]-VISIBLE_RADIUS, 0),
                 max(self.player.position[1]-VISIBLE_RADIUS, 0)
@@ -43,9 +57,6 @@ class Game:
         for row in range(visible_begin[1], visible_end[1]):
             for col in range(visible_begin[0], visible_end[0]):
                 current_map.visible[row][col] = True
-
-        # マップ表示
-        current_map.printMap(self.player.position)
 
     def wait_turn(self):
         current_map = self.maps[self.map_level-1]
@@ -102,24 +113,17 @@ class Game:
             # アイテムだったら拾う
             if stepped_entity.tag == "item":
                 stepped_entity.get_item(self.player)
+                current_map.data[next_position[1]][next_position[0]] = Floor("")
 
             # 視界確保
             self.player.position = next_position
-            visible_begin = (
-                max(self.player.position[0]-VISIBLE_RADIUS, 0),
-                max(self.player.position[1]-VISIBLE_RADIUS, 0)
-            )
-            visible_end = (
-                min(self.player.position[0]+VISIBLE_RADIUS+1, current_map.root_area.size[0]),
-                min(self.player.position[1]+VISIBLE_RADIUS+1, current_map.root_area.size[1])
-            )
-            for row in range(visible_begin[1], visible_end[1]):
-                for col in range(visible_begin[0], visible_end[0]):
-                    current_map.visible[row][col] = True
+            self.get_vision()
 
             break
 
         # 再描画
+        print("\r\033[1A", end="")
+        print(self.player.items)
         current_map.printMap(self.player.position)
 
 

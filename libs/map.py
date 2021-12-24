@@ -2,6 +2,7 @@ import os
 import random
 
 from libs.entity import Wall, Floor
+from objects.items import ITEMS
 from objects.traps import Stair
 
 
@@ -224,6 +225,36 @@ class Map:
             room.position[1]+random.randint(1, room.size[1]-2)
         )
         map_data[stair_position[1]][stair_position[0]] = Stair()
+
+        # アイテム配置
+        for room in all_rooms:
+            item_num = 0
+
+            available_floors = 0
+            for row in range(room.size[1]-1):
+                for col in range(room.size[0]-1):
+                    if map_data[room.position[1] + row][room.position[0] + col].__class__.__name__ == Floor.__name__:
+                        available_floors += 1
+
+            while True:
+                # n回1/5を続けて出したらn個アイテム配置
+                rnd = random.randint(1, 5)
+                if rnd != 1:
+                    break
+
+                item_num += 1
+                if item_num >= available_floors:
+                    break
+
+            for _i in range(item_num):
+                while True:
+                    item_position = (
+                        room.position[0] + random.randint(1, room.size[0]-2),
+                        room.position[1] + random.randint(1, room.size[1]-2)
+                    )
+                    if map_data[item_position[1]][item_position[0]].__class__.__name__ == Floor.__name__:
+                        map_data[item_position[1]][item_position[0]] = random.choice(ITEMS)()
+                        break
 
         return map_data
 
