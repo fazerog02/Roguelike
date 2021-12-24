@@ -54,21 +54,31 @@ class Food(Item):
             self.extra_effect(game)
 
 
-class Player(Entity):
-    def __init__(self, position, name, img, tag="player"):
+class Creature(Entity):
+    def __init__(self, position, name, lv, max_hp, attack, defend, img, skills, items, tag="creature"):
         super().__init__(img, tag)
         self.position = position
         self.name = name
-        self.lv = 0
+        self.lv = lv
+        self.hp = max_hp
+        self.max_hp = max_hp
+        self.attack = attack
+        self.defend = defend
+        self.skills = skills
+        self.items = items
+
+
+class Enemy(Creature):
+    def __init__(self, position, name, lv, max_hp, attack, defend, skills=[], items={}, tag="creature"):
+        super().__init__(position, name, lv, max_hp, attack, defend, "", skills, items, tag)
+
+
+class Player(Creature):
+    def __init__(self, position, name, tag="player"):
+        super().__init__(position, name, 0, 10, 1, 1, "", [], {}, tag)
         self.exp = 0
-        self.hp = 10
-        self.max_hp = 10
-        self.attack = 1
-        self.defend = 1
         self.hunger = 100
         self.max_hunger = 100
-        self.skills = []
-        self.items = {}
 
     def on_lv_up():
         pass
