@@ -6,21 +6,23 @@ import pygame
 from pygame.locals import QUIT, KEYDOWN
 
 from libs.map import Map
-from libs.entity import Floor, Player
+from libs.entity import Floor, Player, Wall
 
 
-MAP_SIZE = (25, 25)
+MAP_SIZE = (50, 50)
 VISIBLE_RADIUS = 3
 VISION_TILE_SIZE = 50
+MINI_MAP_TILE_SIZE = 8
 
-MINI_MAP_POSITION = (50, 50)
-STATUS_POSITION = (50, 50)
+MINI_MAP_POSITION = (25, 25)
+STATUS_POSITION = (-400, 50)
 MENU_POSITION = (50, 50)
 
 
 class Game:
     def __init__(self):
         pygame.init()
+        pygame.key.set_repeat(300, 100)
         self.screen = pygame.display.set_mode((0, 0))
         self.screen.fill((255, 255, 255))
 
@@ -91,13 +93,82 @@ class Game:
             base_position[1] + VISION_TILE_SIZE*VISIBLE_RADIUS
         ))
 
+    def print_mini_map(self):
+        current_map = self.maps[self.map_level-1]
+        sysfont = pygame.font.SysFont(None, MINI_MAP_TILE_SIZE)
+        directions = [
+            (0, -1),  # 上
+            (1, 0),  # 右
+            (0, 1),  # 下
+            (-1, 0),  # 左
+            (1, -1),  # 右上
+            (1, 1),  # 右下
+            (-1, 1),  # 左下
+            (-1, -1),  # 左上
+        ]
+
+        for row in range(len(current_map.data)):
+            for col in range(len(current_map.data[0])):
+                if row == self.player.position[1] and col == self.player.position[0]:
+                    text = "@"
+                else:
+                    if current_map.visible[row][col]:
+                        # 輪郭だけ表示したいので、周りが全て壁だったら表示しない
+                        is_inside_wall = True
+                        for direction in directions:
+                            # out of range防止
+                            if row + direction[1] < 0 or \
+                            row + direction[1] >= len(current_map.data) or \
+                            col + direction[0] < 0 or \
+                            col + direction[0] >= len(current_map.data[0]):
+                                continue
+
+                            if current_map.data[row + direction[1]][col + direction[0]].__class__.__name__ != Wall.__name__:
+                                is_inside_wall = False
+                                break
+
+                        text = str(current_map.data[row][col]) if not is_inside_wall else " "
+                    else:
+                        text = " "
+
+                render = sysfont.render(text, True, (0, 0, 0))
+                self.screen.blit(render, (
+                    col*MINI_MAP_TILE_SIZE + MINI_MAP_POSITION[0],
+                    row*MINI_MAP_TILE_SIZE + MINI_MAP_POSITION[1]
+                ))
+
+    def print_status(self):
+        sysfont = pygame.font.SysFont(None, 25)
+        screen_size = pygame.display.get_surface().get_size()
+
+        render = sysfont.render(f"{self.map_level}F", True, (0, 0, 0))
+        self.screen.blit(render, (
+            screen_size[0] + STATUS_POSITION[0],
+            STATUS_POSITION[1]
+        ))
+
+        render = sysfont.render(
+            f"HP: {self.player.hp}/{self.player.max_hp}  " + \
+            f"Hunger: {self.player.hunger}/{self.player.max_hunger}  " + \
+            f"atk: {self.player.attack}  " + \
+            f"def: {self.player.defend}",
+            True,
+            (0, 0, 0)
+        )
+        self.screen.blit(render, (
+            screen_size[0] + STATUS_POSITION[0],
+            STATUS_POSITION[1] + 25
+        ))
+
     def print_screen(self):
         # 画面初期化
         self.screen.fill((255, 255, 255))
 
         # ミニマップ表示
+        self.print_mini_map()
 
         # ステータス表示
+        self.print_status()
 
         # メニュー表示
 
@@ -105,12 +176,15 @@ class Game:
         self.print_vision()
 
     def next_map(self):
+        print("-------------------")
+        print("generating map...")
         # マップ生成
         self.maps.append(Map(MAP_SIZE))
         self.map_level += 1
         current_map = self.maps[self.map_level-1]
 
         # プレイヤー座標ぎめ
+        print("computing player position...")
         all_rooms = current_map.root_area.getAllRooms()
         while True:
             room = random.choice(all_rooms)
@@ -120,6 +194,9 @@ class Game:
             )
             if current_map.data[self.player.position[1]][self.player.position[0]].__class__.__name__ == Floor.__name__:
                 break
+
+        print("finished to generate first map")
+        print("-------------------\n")
 
         # 視界確保
         self.get_vision()

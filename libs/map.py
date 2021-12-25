@@ -190,10 +190,12 @@ class Map:
         self.visible = [[False for _j in range(size[0])] for _i in range(size[1])]
 
     def generateMap(self, size, seed=None):
+        print("generating map data...")
         random.seed(seed)
         map_data = [[Wall("") for _j in range(size[0])] for _i in range(size[1])]
 
         # エリア分割
+        print("dividing areas...")
         now_areas = [self.root_area]
         for _i in range(random.randint(2, 4)):  # 2~4分割->部屋が4~16個生成される
             tmp_areas = []
@@ -207,6 +209,7 @@ class Map:
             now_areas = tmp_areas
 
         # すべての末端エリアに部屋を追加
+        print("generating rooms...")
         for area in now_areas:
             area.createRoom()
 
@@ -216,9 +219,11 @@ class Map:
             room.printRoom(map_data)
 
         # 道生成&表示
+        print("generating path...")
         self.root_area.createAllRoads(map_data)
 
         # 階段配置
+        print("generating stair...")
         room = random.choice(all_rooms)
         stair_position = (
             room.position[0]+random.randint(1, room.size[0]-2),
@@ -227,12 +232,13 @@ class Map:
         map_data[stair_position[1]][stair_position[0]] = Stair()
 
         # アイテム配置
+        print("generating items...")
         for room in all_rooms:
             item_num = 0
 
             available_floors = 0
-            for row in range(room.size[1]-1):
-                for col in range(room.size[0]-1):
+            for row in range(1, room.size[1]-1):
+                for col in range(1, room.size[0]-1):
                     if map_data[room.position[1] + row][room.position[0] + col].__class__.__name__ == Floor.__name__:
                         available_floors += 1
 
@@ -242,9 +248,9 @@ class Map:
                 if rnd != 1:
                     break
 
-                item_num += 1
                 if item_num >= available_floors:
                     break
+                item_num += 1
 
             for _i in range(item_num):
                 while True:
@@ -256,6 +262,7 @@ class Map:
                         map_data[item_position[1]][item_position[0]] = random.choice(ITEMS)()
                         break
 
+        print("finished to generate map data")
         return map_data
 
     def printMap(self, player_position=None):
