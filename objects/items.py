@@ -7,12 +7,13 @@ class WarpMachine(Item):
         super().__init__("warp machine", self.warp_to_stair, "")
 
     def warp_to_stair(self, game):
-        current_map_data = game.maps[game.map_level-1].data
-        for row in range(len(current_map_data)):
-            for col in range(len(current_map_data[row])):
-                if current_map_data[row][col].__class__.__name__ == Stair.__name__:
+        current_map = game.maps[game.map_level-1]
+        for row in range(len(current_map.data)):
+            for col in range(len(current_map.data[row])):
+                if current_map.data[row][col].__class__.__name__ == Stair.__name__:
                     game.player.position = (col, row)
-                    game.get_vision()
+                    game.player.get_vision(current_map)
+                    game.print_screen()
                     return
 
     def __str__(self):

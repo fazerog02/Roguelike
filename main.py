@@ -8,6 +8,25 @@ from pygame.locals import QUIT, KEYDOWN
 from libs.map import Map
 from libs.entity import Floor, Player, Wall
 
+COMMAND_LIST = [
+    "w",
+    "a",
+    "s",
+    "d",
+    "v",
+    "up",
+    "down",
+    "right",
+    "left",
+    "left shift",
+    "space",
+    "return",
+    "escape"
+]
+MENU_SECTIONS = [
+    "skills",
+    "items"
+]
 
 MAP_SIZE = (50, 50)
 VISIBLE_RADIUS = 3
@@ -15,8 +34,8 @@ VISION_TILE_SIZE = 50
 MINI_MAP_TILE_SIZE = 8
 
 MINI_MAP_POSITION = (25, 25)
-STATUS_POSITION = (-400, 50)
-MENU_POSITION = (50, 50)
+STATUS_POSITION = (-50, 50)
+MENU_POSITION = (-50, 150)
 
 
 class Game:
@@ -26,24 +45,13 @@ class Game:
         self.screen = pygame.display.set_mode((0, 0))
         self.screen.fill((255, 255, 255))
 
+        self.walk_count = 0
+        self.menu_index = 0
+        self.opening_menu_section = None
         self.player = Player((0,0), "test", "")
         self.map_level = 0
         self.maps = []
-
-    def get_vision(self):
-        current_map = self.maps[self.map_level-1]
-
-        visible_begin = (
-                max(self.player.position[0]-VISIBLE_RADIUS, 0),
-                max(self.player.position[1]-VISIBLE_RADIUS, 0)
-            )
-        visible_end = (
-            min(self.player.position[0]+VISIBLE_RADIUS+1, current_map.root_area.size[0]),
-            min(self.player.position[1]+VISIBLE_RADIUS+1, current_map.root_area.size[1])
-        )
-        for row in range(visible_begin[1], visible_end[1]):
-            for col in range(visible_begin[0], visible_end[0]):
-                current_map.visible[row][col] = True
+        self.is_stopped = False
 
     def print_vision(self):
         current_map = self.maps[self.map_level-1]
@@ -87,7 +95,8 @@ class Game:
             tile_position_offset[1] += VISION_TILE_SIZE
 
         # プレイヤーGUI描画
-        player_text = sysfont.render("@", True, (0, 0, 0))
+        player_str_list = ["^", ">", "v", "<"]
+        player_text = sysfont.render(player_str_list[self.player.direction], True, (0, 0, 0))
         self.screen.blit(player_text, (
             base_position[0] + VISION_TILE_SIZE*VISIBLE_RADIUS,
             base_position[1] + VISION_TILE_SIZE*VISIBLE_RADIUS
@@ -141,13 +150,8 @@ class Game:
         sysfont = pygame.font.SysFont(None, 25)
         screen_size = pygame.display.get_surface().get_size()
 
-        render = sysfont.render(f"{self.map_level}F", True, (0, 0, 0))
-        self.screen.blit(render, (
-            screen_size[0] + STATUS_POSITION[0],
-            STATUS_POSITION[1]
-        ))
-
-        render = sysfont.render(
+        floor_render = sysfont.render(f"{self.map_level}F", True, (0, 0, 0))
+        status_render = sysfont.render(
             f"HP: {self.player.hp}/{self.player.max_hp}  " + \
             f"Hunger: {self.player.hunger}/{self.player.max_hunger}  " + \
             f"atk: {self.player.attack}  " + \
@@ -155,10 +159,78 @@ class Game:
             True,
             (0, 0, 0)
         )
-        self.screen.blit(render, (
-            screen_size[0] + STATUS_POSITION[0],
+        status_div_width = status_render.get_size()[0]
+
+        self.screen.blit(floor_render, (
+            screen_size[0] - status_div_width + STATUS_POSITION[0],
+            STATUS_POSITION[1]
+        ))
+        self.screen.blit(status_render, (
+            screen_size[0] - status_div_width + STATUS_POSITION[0],
             STATUS_POSITION[1] + 25
         ))
+
+    def print_top_menu(self):
+        menu_font_size = 30
+        sysfont = pygame.font.SysFont(None, menu_font_size)
+        screen_size = pygame.display.get_surface().get_size()
+
+        renders = []
+        max_width = -1
+
+        for index, menu_section in enumerate(MENU_SECTIONS):
+            render_str = menu_section
+            if index == self.menu_index:
+                render_str += "  <"
+            render = sysfont.render(render_str, True, (0, 0, 0))
+            if max_width < render.get_size()[0]:
+                max_width = render.get_size()[0]
+            renders.append(render)
+
+        for index, render in enumerate(renders):
+            self.screen.blit(render, (
+                screen_size[0] - max_width + MENU_POSITION[0],
+                MENU_POSITION[1] + menu_font_size * index
+            ))
+
+    def print_items_menu(self):
+        screen_size = pygame.display.get_surface().get_size()
+
+        sysfont = pygame.font.SysFont(None, 40)
+        render = sysfont.render("items", True, (0, 0, 0))
+        self.screen.blit(render, (
+            screen_size[0] - render.get_size()[0] + MENU_POSITION[0],
+            MENU_POSITION[1]
+        ))
+
+        font_size = 25
+        sysfont = pygame.font.SysFont(None, font_size)
+        renders = []
+        max_width = -1
+        for index, item_key in enumerate(self.player.items.keys()):
+            render_str = f"{item_key} x{self.player.items[item_key][1]}"
+            if index == self.menu_index:
+                render_str += "  <"
+            render = sysfont.render(render_str, True, (0,0,0))
+            if max_width < render.get_size()[0]:
+                max_width = render.get_size()[0]
+            renders.append(render)
+
+        for index, render in enumerate(renders):
+            self.screen.blit(render, (
+                screen_size[0] - max_width + MENU_POSITION[0],
+                MENU_POSITION[1] + (index+1) * font_size
+            ))
+
+
+    def print_menu(self):
+        if self.opening_menu_section is None:
+            self.print_top_menu()
+        elif self.opening_menu_section == "skills":
+            pass
+        elif self.opening_menu_section == "items":
+            self.print_items_menu()
+
 
     def print_screen(self):
         # 画面初期化
@@ -171,6 +243,7 @@ class Game:
         self.print_status()
 
         # メニュー表示
+        self.print_menu()
 
         # マップ表示
         self.print_vision()
@@ -199,67 +272,82 @@ class Game:
         print("-------------------\n")
 
         # 視界確保
-        self.get_vision()
+        self.player.get_vision(current_map)
 
         # 画面更新
         self.print_screen()
 
     def play_turn(self, key):
         current_map = self.maps[self.map_level-1]
+        is_end_turn = False
 
-        next_position = self.player.position
+        old_position = self.player.position
         if key == "w":
-            next_position = (
-                next_position[0],
-                next_position[1] - 1
-            )
+            self.player.direction = 0
+            if not self.is_stopped:
+                if self.player.move(self.player.direction, self):
+                    is_end_turn = True
         elif key == "a":
-            next_position = (
-                next_position[0] - 1,
-                next_position[1]
-            )
+            self.player.direction = 3
+            if not self.is_stopped:
+                if self.player.move(self.player.direction, self):
+                    is_end_turn = True
         elif key == "s":
-            next_position = (
-                next_position[0],
-                next_position[1] + 1
-            )
+            self.player.direction = 2
+            if not self.is_stopped:
+                if self.player.move(self.player.direction, self):
+                    is_end_turn = True
         elif key == "d":
-            next_position = (
-                next_position[0] + 1,
-                next_position[1]
-            )
-        elif key == "e":
+            self.player.direction = 1
+            if not self.is_stopped:
+                if self.player.move(self.player.direction, self):
+                    is_end_turn = True
+        elif key == "left shift":
+            self.is_stopped = not self.is_stopped
+        elif key == "v":
+            self.player.direction
+            is_end_turn = True
+        elif key == "up":
+            self.menu_index = max(self.menu_index-1, 0)
+        elif key == "down":
+            limit_index = 0
+            if self.opening_menu_section is None:
+                limit_index = len(MENU_SECTIONS)-1
+            elif self.opening_menu_section == "items":
+                limit_index = len(self.player.items.keys())-1
+            elif self.opening_menu_section == "skills":
+                limit_index = len(self.player.skills)-1
+            self.menu_index = min(self.menu_index+1, limit_index)
+        elif key == "right":
+            if self.opening_menu_section is None:
+                self.opening_menu_section = MENU_SECTIONS[self.menu_index]
+                self.menu_index = 0
+        elif key == "left":
+            if self.opening_menu_section is not None:
+                self.opening_menu_section = None
+        elif key == "return":
+            if self.opening_menu_section == "items":
+                if len(self.player.items.keys()) <= 0:
+                    return
+                item_key = list(self.player.items.keys())[self.menu_index]
+                is_end_turn = True
+                if self.player.use_item(item_key, self):
+                    self.menu_index = max(self.menu_index-1, 0)
+            elif self.opening_menu_section == "skills":
+                if len(self.player.skills) <= 0:
+                    return
+                is_end_turn = True
+        elif key == "escape":
             pygame.quit()
             sys.exit()
 
-        # マップからはみ出さないようにする
-        if next_position[0] < 0 or \
-        next_position[1] < 0 or \
-        next_position[0] >= current_map.root_area.size[0] or \
-        next_position[1] >= current_map.root_area.size[1]:
-            return
+        if is_end_turn:
+            pass
 
-        # 敵or壁の上には行けない
-        stepped_entity = current_map.data[next_position[1]][next_position[0]]
-        if stepped_entity.tag in ["wall", "enemy"]:
-            return
-
-        # トラップor階段だったら関数実行
-        if stepped_entity.tag == "trap":
-            stepped_entity.on_stepped_on(self)
-        elif stepped_entity.tag == "stair":
-            # 階段だったらここで強制終了
-            stepped_entity.on_stepped_on(self)
-            return
-
-        # アイテムだったら拾う
-        if stepped_entity.tag == "item":
-            stepped_entity.get_item(self.player)
-            current_map.data[next_position[1]][next_position[0]] = Floor("")
-
-        # 視界確保
-        self.player.position = next_position
-        self.get_vision()
+        # ゲームオーバー
+        if self.player.hp <= 0:
+            pygame.quit()
+            sys.exit()
 
         # 画面更新
         self.print_screen()
@@ -274,7 +362,8 @@ class Game:
                 sys.exit()
             elif event.type == KEYDOWN:
                 pressed_key = pygame.key.name(event.key)
-                if pressed_key not in ["w", "a", "s", "d", "e"]:
+                print(pressed_key)
+                if pressed_key not in COMMAND_LIST:
                     continue
                 self.play_turn(pressed_key)
 

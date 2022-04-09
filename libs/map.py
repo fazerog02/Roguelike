@@ -1,7 +1,7 @@
 import os
 import random
 
-from libs.entity import Wall, Floor
+from libs.entity import Wall, Floor, Enemy
 from objects.items import ITEMS
 from objects.traps import Stair
 
@@ -17,6 +17,7 @@ class Area:
         self.size = size  # (width, height)
         self.areas = None
         self.room = None
+        self.enemies = []
 
     def divide(self):
         # 横幅が縦幅以上のときは縦割りを優先する
@@ -243,8 +244,8 @@ class Map:
                         available_floors += 1
 
             while True:
-                # n回1/5を続けて出したらn個アイテム配置
-                rnd = random.randint(1, 5)
+                # n回1/4を続けて出したらn個アイテム配置
+                rnd = random.randint(1, 4)
                 if rnd != 1:
                     break
 
@@ -261,6 +262,10 @@ class Map:
                     if map_data[item_position[1]][item_position[0]].__class__.__name__ == Floor.__name__:
                         map_data[item_position[1]][item_position[0]] = random.choice(ITEMS)()
                         break
+
+        # 敵配置
+        print("generating enemies...")
+
 
         print("finished to generate map data")
         return map_data
